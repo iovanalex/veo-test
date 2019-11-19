@@ -7,7 +7,7 @@
 #define STOP_WORD "VEONEER"
 #define FILE_PATH "C:\\Users\\iovan\\Desktop\\cuvinte.txt"
 
-//http://codepad.org/sDxMBz7E
+
 
 void testMalloc(){
 
