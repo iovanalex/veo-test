@@ -21,7 +21,7 @@ void testMalloc(){
             printf("%ul\n", cnt);
         }
     }while (p!=NULL);
-    printf("Am reusit sa fac bulca de %llu ori\n", cnt);
+ //   printf("Am reusit sa fac bulca de %llu ori\n", cnt);
 }
 
 char* citesteCuvant(FILE* f, char* stopChars){
