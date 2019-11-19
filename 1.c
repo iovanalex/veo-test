@@ -24,4 +24,5 @@ int main(){
     qsort(str, n, sizeof(char *), cmpstr);
     for (int i=0; i<n; ++i)
         printf("%d: %s\n", i, str[i]);
+        //abc
 }
