@@ -1,0 +1,27 @@
+/*
+Se citeste un cuvant format din litere mici. 
+Sa se afiseze cuvintele care se obtin prin eliminarea
+succesiva a primei si ultimei litere din cuvantul citit.
+Ex: Daca de citeste cuvantul alina se vor afisa:
+alina
+lin
+i
+*/
+
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+main ()
+{
+    char a[20] = "bacalaureat";
+    char aux[20];
+
+    while(strlen(a)>0){
+        printf("%s\n", a);
+        strcpy(a, a+1);
+        strcpy(a+strlen(a)-1, a+strlen(a));
+    }
+
+  return 0;
+}
