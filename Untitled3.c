@@ -7,6 +7,13 @@ int main()
 {
     unsigned n;
     cin>>n;
+
+
+
+
+
+
+
     unsigned nr=0;
     for(int i=1;i<=n;i++)
     {
