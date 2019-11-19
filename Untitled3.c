@@ -22,7 +22,6 @@ int main()
         unsigned ni1,ni2;
         if(x%2==1)
         {
-
             nr++;
         }
     }
