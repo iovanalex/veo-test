@@ -1,0 +1,310 @@
+/* Standard includes. */
+#include <stdint.h>
+#include <stdlib.h>
+
+/* Kernel includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+// #include "main.h"
+
+// #include "croutine.h"
+
+/* TODO Add any manufacture supplied header files necessary for CMSIS functions
+ to be available here. */
+#include "stm32f4xx.h"
+#include "stm32f429i_discovery_lcd.h"
+
+/*
+ * TODO: Implement this function for any hardware specific clock configuration
+ * that was not already performed before main() was called.
+ */
+static void prvSetupHardware(void);
+
+/*
+ * The queue send and receive tasks as described in the comments at the top of
+ * this file.
+ */
+
+unsigned int screen_counter = 0;
+unsigned short task_status = 0;
+unsigned portBASE_TYPE priority_Count_on_Screen = 1;
+unsigned portBASE_TYPE priority_Led_Blink = 2;
+xTaskHandle handler_Count_on_Screen;
+xTaskHandle handler_Led_Blink;
+xSemaphoreHandle xSemaphore = NULL;
+xSemaphoreHandle MyMutex=NULL;
+xQueueHandle MyQueue=NULL;
+unsigned led_status=0;
+unsigned MyCounter=0;
+
+
+static void Led_Blink(void *pvParameters) {
+		while(1) {
+		if(xSemaphoreTake(xSemaphore, 10/portTICK_RATE_MS)!=0){
+			if(led_status==0){
+				STM_EVAL_LEDOn(LED3);
+			}
+			else
+			{
+				STM_EVAL_LEDOff(LED3);
+			}
+			led_status^=1;
+
+		}
+
+	}
+}
+
+
+/*-----------------------------------------------------------*/
+
+static void Count_on_screen(void *pvParameters) {
+
+	char string_to_display[6] = { };
+	while (1) {
+		itoa(screen_counter++, string_to_display, 10);
+		LCD_DisplayStringLine(LINE(2), (uint8_t*) string_to_display);
+		vTaskDelay(2000/portTICK_RATE_MS);
+		xSemaphoreGive(xSemaphore);
+
+	}
+}
+
+
+/*void EXTI0_IRQHandler(void) {
+
+	if (EXTI_GetITStatus(EXTI_Line0 != 0)) {
+		task_status ^= 1;
+	}
+
+	if (task_status) vTaskSuspend(handler_Led_Blink);
+	else vTaskResume(handler_Led_Blink);
+
+	EXTI_ClearFlag(EXTI_Line0);
+
+}*/
+
+/*-----------------------------------------------------------*/
+
+void count_on_screen1_semaphoreMutex( void * pvParameters )
+{
+    long double dummy_count=0;
+	char string_to_display[6] = { };
+	while (1) {
+		for(dummy_count=0; dummy_count<10000000; dummy_count++){
+
+		}
+		if(xSemaphoreTake(MyMutex, (portTickType) 100000) !=0){
+			itoa(screen_counter++, string_to_display, 10);
+			LCD_DisplayStringLine(LINE(5), (uint8_t*) string_to_display);
+			xSemaphoreGive(MyMutex);
+		}
+	}
+}
+
+void count_on_screen2_semaphoreMutex( void * pvParameters )
+{
+    long double dummy_count=0;
+	char string_to_display[6] = { };
+	while (1) {
+		for(dummy_count=0; dummy_count<10000000; dummy_count++){
+
+		}
+		if(xSemaphoreTake(MyMutex, (portTickType) 100000) !=0){
+			itoa(screen_counter++, string_to_display, 10);
+			LCD_DisplayStringLine(LINE(7), (uint8_t*) string_to_display);
+			xSemaphoreGive(MyMutex);
+		}
+	}
+}
+
+void EXTI0_IRQHandler(void) {
+	if (EXTI_GetITStatus(EXTI_Line0 != 0)) {
+		screen_counter *= 2;
+	}
+	EXTI_ClearFlag(EXTI_Line0);
+}
+
+/*-----------------------------------------------------------*/
+
+void myReceive( void * pvParameters )
+{
+	char string_to_display[6] = { };
+	while (1) {
+		if(xQueueReceive(MyQueue, &MyCounter, (portTickType) 100000) !=0){
+
+		}else{
+			itoa(screen_counter++, string_to_display, 10);
+			LCD_DisplayStringLine(LINE(7), (uint8_t*) "ok");
+		}
+	}
+}
+
+
+/*-----------------------------------------------------------*/
+
+int main(void) {
+
+	/* Configure the system ready to run the demo.  The clock configuration
+	 can be done here if it was not done before main() was called. */
+	prvSetupHardware();
+
+	STM_EVAL_LEDInit(LED3);
+	STM_EVAL_LEDInit(LED4);
+
+	STM_EVAL_PBInit(BUTTON_USER, BUTTON_MODE_EXTI);
+
+	/* LCD initiatization */
+	LCD_Init();
+
+	/* LCD Layer initiatization */
+	LCD_LayerInit();
+
+	/*Initilization semaphore*/
+	vSemaphoreCreateBinary(xSemaphore);
+
+	/* Enable the LTDC */
+	LTDC_Cmd(ENABLE);
+
+	/* Set LCD foreground layer */
+	LCD_SetLayer(LCD_FOREGROUND_LAYER);
+
+
+	LCD_Clear(LCD_COLOR_BLACK);
+
+	LCD_SetFont(&Font16x24);
+	LCD_SetColors(LCD_COLOR_WHITE, LCD_COLOR_BLACK);
+
+	 MyMutex = xSemaphoreCreateMutex();
+	 MyQueue = xQueueCreate(10, sizeof(unsigned int));
+
+	 if( MyMutex != NULL )
+	   {
+			LCD_DisplayStringLine(LINE(1), (uint8_t*) "Mutex is ok.");
+
+	   }
+
+	LCD_DisplayStringLine(LINE(4), (uint8_t*) "Count t1.");
+	LCD_DisplayStringLine(LINE(6), (uint8_t*) "Count t2.");
+
+	xTaskCreate(count_on_screen1_semaphoreMutex, ( signed char * ) "Count1",
+			configMINIMAL_STACK_SIZE, NULL, ( ( unsigned portBASE_TYPE ) 1 ), NULL);
+
+	xTaskCreate(count_on_screen2_semaphoreMutex, (signed char * ) "Count2 ",
+			configMINIMAL_STACK_SIZE, NULL, ( ( unsigned portBASE_TYPE ) 1 ), NULL);
+
+	/* Start the tasks and timer running. */
+	vTaskStartScheduler();
+
+	/* If all is well, the scheduler will now be running, and the following line
+	 will never be reached.  If the following line does execute, then there was
+	 insufficient FreeRTOS heap memory available for the idle and/or timer tasks
+	 to be created.  See the memory management section on the FreeRTOS web site
+	 for more details.  http://www.freertos.org/a00111.html */
+	for (;;)
+		;
+}
+/*-----------------------------------------------------------*/
+
+void vApplicationTickHook(void) {
+	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+	static uint32_t ulCount = 0;
+
+	/* The RTOS tick hook function is enabled by setting configUSE_TICK_HOOK to
+	 1 in FreeRTOSConfig.h.
+
+	 "Give" the semaphore on every 500th tick interrupt. */
+	ulCount++;
+	if (ulCount >= 500UL) {
+		/* This function is called from an interrupt context (the RTOS tick
+		 interrupt),	so only ISR safe API functions can be used (those that end
+		 in "FromISR()".
+
+		 xHigherPriorityTaskWoken was initialised to pdFALSE, and will be set to
+		 pdTRUE by xSemaphoreGiveFromISR() if giving the semaphore unblocked a
+		 task that has equal or higher priority than the interrupted task.
+		 http://www.freertos.org/a00124.html */
+//		xSemaphoreGiveFromISR( xEventSemaphore, &xHigherPriorityTaskWoken );
+		ulCount = 0UL;
+	}
+
+	/* If xHigherPriorityTaskWoken is pdTRUE then a context switch should
+	 normally be performed before leaving the interrupt (because during the
+	 execution of the interrupt a task of equal or higher priority than the
+	 running task was unblocked).  The syntax required to context switch from
+	 an interrupt is port dependent, so check the documentation of the port you
+	 are using.  http://www.freertos.org/a00090.html
+
+	 In this case, the function is running in the context of the tick interrupt,
+	 which will automatically check for the higher priority task to run anyway,
+	 so no further action is required. */
+}
+/*-----------------------------------------------------------*/
+
+void vApplicationMallocFailedHook(void) {
+	/* The malloc failed hook is enabled by setting
+	 configUSE_MALLOC_FAILED_HOOK to 1 in FreeRTOSConfig.h.
+
+	 Called if a call to pvPortMalloc() fails because there is insufficient
+	 free memory available in the FreeRTOS heap.  pvPortMalloc() is called
+	 internally by FreeRTOS API functions that create tasks, queues, software
+	 timers, and semaphores.  The size of the FreeRTOS heap is set by the
+	 configTOTAL_HEAP_SIZE configuration constant in FreeRTOSConfig.h. */
+	for (;;)
+		;
+}
+/*-----------------------------------------------------------*/
+
+void vApplicationStackOverflowHook(xTaskHandle pxTask, signed char *pcTaskName) {
+	(void) pcTaskName;
+	(void) pxTask;
+
+	/* Run time stack overflow checking is performed if
+	 configconfigCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
+	 function is called if a stack overflow is detected.  pxCurrentTCB can be
+	 inspected in the debugger if the task name passed into this function is
+	 corrupt. */
+	for (;;)
+		;
+}
+/*-----------------------------------------------------------*/
+
+void vApplicationIdleHook(void) {
+	volatile size_t xFreeStackSpace;
+
+	/* The idle task hook is enabled by setting configUSE_IDLE_HOOK to 1 in
+	 FreeRTOSConfig.h.
+
+	 This function is called on each cycle of the idle task.  In this case it
+	 does nothing useful, other than report the amount of FreeRTOS heap that
+	 remains unallocated. */
+	xFreeStackSpace = xPortGetFreeHeapSize();
+
+	if (xFreeStackSpace > 100) {
+		/* By now, the kernel has allocated everything it is going to, so
+		 if there is a lot of heap remaining unallocated then
+		 the value of configTOTAL_HEAP_SIZE in FreeRTOSConfig.h can be
+		 reduced accordingly. */
+	}
+}
+/*-----------------------------------------------------------*/
+
+static void prvSetupHardware(void) {
+	/* Ensure all priority bits are assigned as preemption priority bits.
+	 http://www.freertos.org/RTOS-Cortex-M3-M4.html */
+	NVIC_SetPriorityGrouping(0);
+
+	/* TODO: Setup the clocks, etc. here, if they were not configured before
+	 main() was called. */
+}
+
+/*
+ * Callback used by stm324xg_eval_i2c_ee.c.
+ * Refer to stm324xg_eval_i2c_ee.h for more info.
+ */
+uint32_t sEE_TIMEOUT_UserCallback(void) {
+	/* TODO, implement your code here */
+	while (1) {
+	}
+}
