@@ -8,7 +8,7 @@ typedef struct Punct{
 
 int main(){
 
-
+//cristina
     Punct_t p={2,3, 17};
 
     Punct_t* pp=&p;
